@@ -156,6 +156,14 @@ function set_setting(string $k, ?string $v): void
     q('INSERT INTO configuracoes (chave, valor) VALUES (?, ?) ON DUPLICATE KEY UPDATE valor = VALUES(valor)', [$k, $v]);
 }
 
+const DB_VERSAO = 2;
+function migrar(): void
+{
+    if ((int) setting('db_versao', '1') >= DB_VERSAO) return;
+    if (!one("SHOW COLUMNS FROM matriculas LIKE 'origem_id'")) q('ALTER TABLE matriculas ADD COLUMN origem_id INT UNSIGNED NULL AFTER id');
+    set_setting('db_versao', (string) DB_VERSAO);
+}
+
 function audit(string $acao, string $detalhe = ''): void
 {
     try {

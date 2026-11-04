@@ -6,6 +6,7 @@ if (!$GLOBALS['config']) {
     header('Location: ' . base_path() . 'install/');
     exit;
 }
+migrar();
 
 $secure = str_starts_with(base_url(), 'https');
 session_name('diario_sid');

@@ -46,6 +46,7 @@ if (installed()) {
             foreach ($datas as $i => [$ini, $fim]) insert('periodos', ['ano_letivo_id' => $anoId, 'numero' => $i + 1, 'nome' => ($i + 1) . 'º Bimestre', 'data_inicio' => $ini, 'data_fim' => $fim]);
         }
         foreach (['nome_sistema' => $f['nome_sistema'] ?: 'Diário Escolar', 'municipio' => $f['municipio'], 'uf' => strtoupper($f['uf']), 'secretaria' => $f['secretaria'] ?: 'Secretaria Municipal de Educação'] as $k => $v) set_setting($k, $v);
+        set_setting('db_versao', (string) DB_VERSAO);
         insert('usuarios', ['nome' => $f['admin_nome'], 'email' => mb_strtolower($f['admin_email']), 'senha_hash' => password_hash($f['admin_senha'], PASSWORD_DEFAULT), 'perfil' => 'admin']);
         }
         $php = "<?php\n// Gerado pelo instalador em " . date('Y-m-d H:i') . "\nreturn " . var_export($config, true) . ";\n";

@@ -11,6 +11,10 @@ if ($busca !== '') {
 }
 if (g('sem_matricula')) {
     $where .= ' AND m.id IS NULL';
+    if ($busca === '' && $u['perfil'] === 'gestor') {
+        $where .= ' AND (EXISTS (SELECT 1 FROM matriculas mh JOIN turmas th ON th.id = mh.turma_id WHERE mh.aluno_id = a.id AND th.escola_id = ?) OR NOT EXISTS (SELECT 1 FROM matriculas mh WHERE mh.aluno_id = a.id))';
+        $params[] = $u['escola_id'];
+    }
 } elseif ($busca === '' && $u['perfil'] === 'gestor') {
     $where .= ' AND t.escola_id = ?';
     $params[] = $u['escola_id'];

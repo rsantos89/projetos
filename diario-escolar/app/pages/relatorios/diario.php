@@ -7,11 +7,13 @@ $ini = "$mes-01";
 $fim = date('Y-m-t', strtotime($ini));
 $cf = (string) g('componente_id', '');
 $comps = componentes_permitidos((int) $t['id']);
+$poli = professor_polivalente((int) $t['id']);
+if ($cf === '' && !$poli) forbidden();
 $where = 'turma_id = ? AND data BETWEEN ? AND ?';
 $p = [$t['id'], $ini, $fim];
 if ($cf === '') $where .= ' AND componente_id IS NULL';
 elseif ($cf !== 'todos') { if (!in_array((int) $cf, array_map('intval', array_column($comps, 'id')), true)) forbidden(); $where .= ' AND componente_id = ?'; $p[] = (int) $cf; }
-else $where .= ' AND (componente_id IS NULL OR componente_id IN (' . in_list(array_column($comps, 'id')) . '))';
+else $where .= ' AND (' . ($poli ? 'componente_id IS NULL OR ' : '') . 'componente_id IN (' . in_list(array_column($comps, 'id')) . '))';
 $aulas = all("SELECT a.*, c.abreviacao, c.nome comp FROM aulas a LEFT JOIN componentes c ON c.id = a.componente_id WHERE $where ORDER BY data, c.nome", $p);
 $title = 'Diário de classe · ' . $t['nome'] . ' · ' . $mes;
 $freq = [];

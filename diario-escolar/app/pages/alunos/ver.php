@@ -1,6 +1,7 @@
 <?php
 require_role('admin', 'gestor');
 $id = gi('id');
+aluno_acesso($id);
 $a = one('SELECT * FROM alunos WHERE id = ?', [$id]);
 if (!$a) not_found();
 $title = nome_aluno($a);

@@ -2,6 +2,7 @@
 require_role('admin', 'gestor');
 $tpl = 'print';
 $a = one('SELECT * FROM alunos WHERE id = ?', [gi('id')]) ?? not_found();
+aluno_acesso((int) $a['id']);
 $title = 'Ficha individual · ' . $a['nome'];
 $mats = all('SELECT m.*, t.nome turma, t.turno, s.nome escola, e.nome etapa, al.ano FROM matriculas m JOIN turmas t ON t.id = m.turma_id JOIN escolas s ON s.id = t.escola_id JOIN etapas e ON e.id = m.etapa_id JOIN anos_letivos al ON al.id = m.ano_letivo_id WHERE m.aluno_id = ? ORDER BY al.ano, m.id', [$a['id']]);
 $cabEscola = null;

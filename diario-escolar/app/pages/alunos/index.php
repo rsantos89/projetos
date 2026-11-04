@@ -8,13 +8,15 @@ $where = '1=1';
 if ($busca !== '') {
     $where .= ' AND (a.nome LIKE ? OR a.nome_social LIKE ? OR a.cpf = ? OR a.codigo = ? OR a.nis = ? OR a.mae LIKE ?)';
     array_push($params, "%$busca%", "%$busca%", $busca, $busca, $busca, "%$busca%");
-} elseif ($u['perfil'] === 'gestor') {
+}
+if (g('sem_matricula')) {
+    $where .= ' AND m.id IS NULL';
+} elseif ($busca === '' && $u['perfil'] === 'gestor') {
     $where .= ' AND t.escola_id = ?';
     $params[] = $u['escola_id'];
-} else {
+} elseif ($busca === '') {
     $where .= ' AND m.id IS NOT NULL';
 }
-if (g('sem_matricula')) $where .= ' AND m.id IS NULL';
 $alunos = all("SELECT a.id, a.nome, a.nome_social, a.codigo, a.data_nascimento, a.mae, a.nee, m.id mid, t.nome turma, t.turno, s.nome escola, e.nome etapa
     FROM alunos a
     LEFT JOIN matriculas m ON m.aluno_id = a.id AND m.ano_letivo_id = ? AND m.situacao = 'cursando'

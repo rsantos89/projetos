@@ -33,9 +33,8 @@ $tok = http_post('https://oauth2.googleapis.com/token', [
     'code' => (string) g('code'), 'client_id' => $clientId, 'client_secret' => $secret,
     'redirect_uri' => $redirectUri, 'grant_type' => 'authorization_code',
 ]);
-// O id_token foi recebido diretamente do Google via TLS, por isso basta validar as claims.
-$parts = explode('.', (string) ($tok['id_token'] ?? ''));
-$claims = count($parts) === 3 ? json_decode(b64url_decode($parts[1]), true) : null;
+$jwks = http_get('https://www.googleapis.com/oauth2/v3/certs');
+$claims = $jwks ? jwt_verificar((string) ($tok['id_token'] ?? ''), $jwks) : null;
 $ok = is_array($claims)
     && ($claims['aud'] ?? '') === $clientId
     && in_array($claims['iss'] ?? '', ['https://accounts.google.com', 'accounts.google.com'], true)

@@ -246,6 +246,21 @@ function componentes_permitidos(int $turmaId): array
     if (in_array(null, $ids, true)) return $comps;
     return array_values(array_filter($comps, fn($c) => in_array($c['id'], $ids)));
 }
+function professor_polivalente(int $turmaId): bool
+{
+    $u = user();
+    return $u['perfil'] !== 'professor' || (bool) val('SELECT 1 FROM lotacoes WHERE turma_id = ? AND usuario_id = ? AND componente_id IS NULL', [$turmaId, $u['id']]);
+}
+/** Gestor: vê alunos que já passaram pela escola ou sem matrícula ativa; edita os que cursam na escola ou sem matrícula ativa. */
+function aluno_acesso(int $alunoId, bool $editar = false): void
+{
+    $u = user();
+    if ($u['perfil'] === 'admin') return;
+    if ($u['perfil'] !== 'gestor') forbidden();
+    $ativaFora = val("SELECT 1 FROM matriculas m JOIN turmas t ON t.id = m.turma_id WHERE m.aluno_id = ? AND m.situacao = 'cursando' AND t.escola_id <> ? LIMIT 1", [$alunoId, $u['escola_id']]);
+    $naEscola = val('SELECT 1 FROM matriculas m JOIN turmas t ON t.id = m.turma_id WHERE m.aluno_id = ? AND t.escola_id = ?' . ($editar ? " AND m.situacao = 'cursando'" : '') . ' LIMIT 1', [$alunoId, $u['escola_id']]);
+    if (!$naEscola && $ativaFora) forbidden();
+}
 function turma_so_parecer(int $turmaId): bool
 {
     return !val("SELECT 1 FROM turma_etapas te JOIN etapas e ON e.id = te.etapa_id WHERE te.turma_id = ? AND e.avaliacao = 'nota'", [$turmaId]);
@@ -326,5 +341,47 @@ function http_post(string $url, array $data): ?array
     return $res ? json_decode($res, true) : null;
 }
 require_once __DIR__ . '/diario.php';
+
+function http_get(string $url): ?array
+{
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_SSL_VERIFYPEER => true]);
+        $res = curl_exec($ch);
+        curl_close($ch);
+    } else {
+        $res = @file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 15]]));
+    }
+    return $res ? json_decode($res, true) : null;
+}
+
+/** Converte uma chave JWK RSA (n, e) em PEM. */
+function jwk_rsa_pem(string $n, string $e): string
+{
+    $len = function (int $l): string { if ($l < 128) return chr($l); $s = ltrim(pack('N', $l), "\0"); return chr(0x80 | strlen($s)) . $s; };
+    $int = function (string $x) use ($len): string { $x = ltrim($x, "\0"); if ($x === '' || ord($x[0]) > 127) $x = "\0" . $x; return "\x02" . $len(strlen($x)) . $x; };
+    $rsa = $int(b64url_decode($n)) . $int(b64url_decode($e));
+    $rsa = "\x30" . $len(strlen($rsa)) . $rsa;
+    $bit = "\x03" . $len(strlen($rsa) + 1) . "\0" . $rsa;
+    $alg = "\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01\x05\x00";
+    $spki = "\x30" . $len(strlen($alg . $bit)) . $alg . $bit;
+    return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($spki), 64, "\n") . "-----END PUBLIC KEY-----\n";
+}
+
+/** Verifica a assinatura RS256 de um JWT contra um JWKS; retorna as claims ou null. */
+function jwt_verificar(string $jwt, array $jwks): ?array
+{
+    $parts = explode('.', $jwt);
+    if (count($parts) !== 3 || !function_exists('openssl_verify')) return null;
+    $h = json_decode(b64url_decode($parts[0]), true);
+    if (!is_array($h) || ($h['alg'] ?? '') !== 'RS256') return null;
+    foreach ($jwks['keys'] ?? [] as $k) {
+        if (($k['kid'] ?? '') !== ($h['kid'] ?? null) || ($k['kty'] ?? '') !== 'RSA') continue;
+        if (openssl_verify($parts[0] . '.' . $parts[1], b64url_decode($parts[2]), jwk_rsa_pem($k['n'], $k['e']), OPENSSL_ALGO_SHA256) !== 1) return null;
+        $claims = json_decode(b64url_decode($parts[1]), true);
+        return is_array($claims) ? $claims : null;
+    }
+    return null;
+}
 
 function b64url_decode(string $s): string { return base64_decode(strtr($s, '-_', '+/') . str_repeat('=', (4 - strlen($s) % 4) % 4)); }

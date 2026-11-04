@@ -10,7 +10,11 @@ if (is_post()) {
     if (p('add_lotacao')) {
         $prof = (int) p('usuario_id');
         $cids = (array) p('componentes', []);
-        if (!$prof) { flash('error', 'Selecione o professor.'); back(); }
+        $pu = $prof ? one("SELECT * FROM usuarios WHERE id = ? AND perfil = 'professor' AND ativo = 1", [$prof]) : null;
+        if (!$pu) { flash('error', 'Selecione um professor ativo.'); back(); }
+        if (user()['perfil'] === 'gestor' && (int) $pu['escola_id'] !== (int) $t['escola_id']) forbidden();
+        $validos = array_map('intval', array_column($comps, 'id'));
+        foreach ($cids as $cid) if ($cid !== '' && !in_array((int) $cid, $validos, true)) { flash('error', 'Componente inválido para a turma.'); back(); }
         if (!$cids || in_array('', $cids, true)) {
             q('DELETE FROM lotacoes WHERE turma_id = ? AND usuario_id = ?', [$id, $prof]);
             insert('lotacoes', ['turma_id' => $id, 'usuario_id' => $prof, 'componente_id' => null]);

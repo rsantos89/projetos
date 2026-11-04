@@ -18,9 +18,28 @@ function pode_editar(?array $periodo = null, ?array $anoRow = null): bool
 }
 
 /** [matricula_id => ['aulas'=>, 'faltas'=>, 'justificadas'=>]] considerando somente aulas em que o aluno constava */
+/** Mapa [matrícula (inclusive as de origem, em remanejamentos/transferências) => matrícula solicitada] */
+function matricula_cadeia(array $mids): array
+{
+    $map = [];
+    foreach ($mids as $m) $map[(int) $m] = (int) $m;
+    $atual = array_keys($map);
+    for ($i = 0; $i < 10 && $atual; $i++) {
+        $prox = [];
+        foreach (all('SELECT id, origem_id FROM matriculas WHERE origem_id IS NOT NULL AND id IN (' . in_list($atual) . ')') as $r) {
+            if (isset($map[(int) $r['origem_id']])) continue;
+            $map[(int) $r['origem_id']] = $map[(int) $r['id']];
+            $prox[] = (int) $r['origem_id'];
+        }
+        $atual = $prox;
+    }
+    return $map;
+}
 function frequencia_resumo(array $mids, ?int $componenteId = null, ?array $periodo = null): array
 {
     if (!$mids) return [];
+    $cadeia = matricula_cadeia($mids);
+    $mids = array_keys($cadeia);
     $sql = 'SELECT f.matricula_id, SUM(a.quantidade) aulas, SUM(CASE WHEN f.justificada = 0 THEN f.faltas ELSE 0 END) faltas,
         SUM(CASE WHEN f.justificada = 1 THEN f.faltas ELSE 0 END) justificadas
         FROM frequencias f JOIN aulas a ON a.id = f.aula_id WHERE f.matricula_id IN (' . in_list($mids) . ')';
@@ -28,7 +47,12 @@ function frequencia_resumo(array $mids, ?int $componenteId = null, ?array $perio
     if ($componenteId) { $sql .= ' AND a.componente_id = ?'; $p[] = $componenteId; }
     if ($periodo) { $sql .= ' AND a.data BETWEEN ? AND ?'; $p[] = $periodo['data_inicio']; $p[] = $periodo['data_fim']; }
     $out = [];
-    foreach (all($sql . ' GROUP BY f.matricula_id', $p) as $r) $out[$r['matricula_id']] = array_map('intval', $r);
+    foreach (all($sql . ' GROUP BY f.matricula_id', $p) as $r) {
+        $dest = $cadeia[(int) $r['matricula_id']];
+        $o = $out[$dest] ?? ['matricula_id' => $dest, 'aulas' => 0, 'faltas' => 0, 'justificadas' => 0];
+        foreach (['aulas', 'faltas', 'justificadas'] as $k) $o[$k] += (int) $r[$k];
+        $out[$dest] = $o;
+    }
     return $out;
 }
 function perc_freq(?array $r): ?float
@@ -50,8 +74,14 @@ function consolidar(array $matriculas, array $componentes, array $periodos, arra
     $rfs = [];
     foreach (all('SELECT * FROM recuperacoes_finais WHERE matricula_id IN (' . in_list($mids) . ')') as $r) $rfs[$r['matricula_id']][$r['componente_id']] = $r['nota'];
     $faltasComp = [];
+    $cadeia = matricula_cadeia($mids);
     foreach (all('SELECT f.matricula_id, a.componente_id, SUM(f.faltas) faltas FROM frequencias f JOIN aulas a ON a.id = f.aula_id
-        WHERE f.matricula_id IN (' . in_list($mids) . ') AND f.justificada = 0 GROUP BY f.matricula_id, a.componente_id') as $r) $faltasComp[$r['matricula_id']][(int) $r['componente_id']] = (int) $r['faltas'];
+        WHERE f.matricula_id IN (' . in_list(array_keys($cadeia)) . ') AND f.justificada = 0 GROUP BY f.matricula_id, a.componente_id') as $r) {
+        $dest = $cadeia[(int) $r['matricula_id']];
+        $faltasComp[$dest][(int) $r['componente_id']] = ($faltasComp[$dest][(int) $r['componente_id']] ?? 0) + (int) $r['faltas'];
+    }
+    $matriz = [];
+    foreach (all('SELECT etapa_id, componente_id FROM etapa_componentes') as $r) $matriz[(int) $r['etapa_id']][] = (int) $r['componente_id'];
     $freq = frequencia_resumo($mids);
     $media = (float) $anoRow['media_aprovacao'];
     $nPer = count($periodos);
@@ -63,6 +93,7 @@ function consolidar(array $matriculas, array $componentes, array $periodos, arra
         if (($m['avaliacao'] ?? 'nota') === 'nota') {
             foreach ($componentes as $c) {
                 $cid = $c['id'];
+                if (isset($m['etapa_id']) && !in_array((int) $cid, $matriz[(int) $m['etapa_id']] ?? [], true)) continue;
                 $ps = [];
                 foreach ($periodos as $per) {
                     $n = $notas[$mid][$cid][$per['id']] ?? null;

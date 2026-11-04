@@ -21,7 +21,7 @@ if (is_post()) {
                 $novaTurma = (int) p('turma_id');
                 $nt = one('SELECT * FROM turmas WHERE id = ? AND ano_letivo_id = ?', [$novaTurma, $m['ano_letivo_id']]);
                 if (!$nt || $novaTurma === (int) $m['turma_id']) throw new RuntimeException('Selecione outra turma do mesmo ano letivo.');
-                if ($acao === 'remanejar' && user()['perfil'] === 'gestor' && $nt['escola_id'] != $m['escola_id']) throw new RuntimeException('Remanejamento é dentro da escola. Use transferência na rede.');
+                if (user()['perfil'] === 'gestor' && $nt['escola_id'] != $m['escola_id']) throw new RuntimeException('Para outra escola, encerre a matrícula como "Transferido" (a escola de destino registra a transferência recebida) ou solicite à Secretaria.');
                 update('matriculas', ['situacao' => $acao === 'remanejar' ? 'remanejado' : 'transferido', 'data_saida' => $data, 'observacao' => $obs ?? ('Para ' . $nt['nome'])], 'id = ?', [$id]);
                 $nova = criar_matricula((int) $m['aluno_id'], $novaTurma, (int) p('etapa_id'), $data, $acao === 'remanejar' ? 'nova' : 'transferencia_recebida', 'Vindo de ' . $m['escola'] . ' · ' . $m['turma']);
                 copiar_registros($id, $nova);

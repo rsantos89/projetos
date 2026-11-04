@@ -19,13 +19,13 @@ Feito para rodar em **qualquer hospedagem cPanel**: PHP puro + MySQL/MariaDB, se
 
 ## Requisitos
 
-- PHP 8.0 ou superior com extensões `pdo_mysql` e `curl` (padrão no cPanel)
+- PHP 8.1 ou superior com extensões `pdo_mysql` e `curl` (padrão no cPanel)
 - MySQL 5.7+ ou MariaDB 10.3+
 
 ## Instalação no cPanel
 
 1. **Banco de dados** – em *cPanel → Bancos de dados MySQL*: crie um banco, um usuário e adicione o usuário ao banco com *Todos os privilégios*.
-2. **PHP** – em *Selecionar versão do PHP* (ou *MultiPHP Manager*), escolha PHP 8.0 ou superior.
+2. **PHP** – em *Selecionar versão do PHP* (ou *MultiPHP Manager*), escolha PHP 8.1 ou superior.
 3. **Arquivos** – envie o conteúdo deste repositório (ZIP) pelo *Gerenciador de Arquivos* para `public_html/` (ou uma subpasta/subdomínio, ex.: `diario.prefeitura.gov.br`) e extraia.
 4. **Instalador** – acesse `https://SEU-DOMINIO/install/`, informe os dados do banco, do município e do administrador.
 5. **Segurança** – após a instalação, **apague a pasta `install/`**. O arquivo `config.php` é criado com permissão restrita e bloqueado pelo `.htaccess`.

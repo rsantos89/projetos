@@ -12,10 +12,11 @@ $title = 'Boletim · ' . $t['nome'];
 $cabEscola = one('SELECT * FROM escolas WHERE id = ?', [$t['escola_id']]);
 $anoRow = one('SELECT * FROM anos_letivos WHERE id = ?', [$t['ano_letivo_id']]);
 $pers = periodos((int) $anoRow['id']);
-$comps = turma_componentes((int) $t['id']);
+$comps = componentes_permitidos((int) $t['id']);
+$verPareceres = professor_polivalente((int) $t['id']);
 $cons = consolidar(array_values($mats), $comps, $pers, $anoRow);
 $pareceres = [];
-foreach (all('SELECT p.*, pe.nome FROM pareceres p JOIN periodos pe ON pe.id = p.periodo_id WHERE p.matricula_id IN (' . in_list(array_column($mats, 'id')) . ') ORDER BY pe.numero') as $p) $pareceres[$p['matricula_id']][] = $p;
+if ($verPareceres) foreach (all('SELECT p.*, pe.nome FROM pareceres p JOIN periodos pe ON pe.id = p.periodo_id WHERE p.matricula_id IN (' . in_list(array_column($mats, 'id')) . ') ORDER BY pe.numero') as $p) $pareceres[$p['matricula_id']][] = $p;
 foreach ($mats as $m):
     $r = $cons[$m['id']];
     $ecomp = array_column(all('SELECT componente_id FROM etapa_componentes WHERE etapa_id = ?', [$m['etapa_id']]), 'componente_id');

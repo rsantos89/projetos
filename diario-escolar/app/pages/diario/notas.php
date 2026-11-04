@@ -17,7 +17,12 @@ $editRf = pode_editar(end($pers) ?: null, $anoRow);
 
 if (is_post()) {
     $erros = 0;
-    $norm = function ($v) use ($max, &$erros) { $n = parse_num($v); if ($n !== null && ($n < 0 || $n > $max)) { $erros++; return null; } return $n; };
+    $ex = $exrf = [];
+    if ($alunos) {
+        foreach (all('SELECT * FROM notas WHERE componente_id = ? AND matricula_id IN (' . in_list(array_column($alunos, 'id')) . ')', [$compId]) as $r) $ex[$r['matricula_id']][$r['periodo_id']] = $r;
+        foreach (all('SELECT * FROM recuperacoes_finais WHERE componente_id = ? AND matricula_id IN (' . in_list(array_column($alunos, 'id')) . ')', [$compId]) as $r) $exrf[$r['matricula_id']] = $r['nota'];
+    }
+    $norm = function ($v, $anterior) use ($max, &$erros) { $n = parse_num($v); if ($n !== null && ($n < 0 || $n > $max)) { $erros++; return $anterior; } return $n; };
     db()->beginTransaction();
     $st = db()->prepare('INSERT INTO notas (matricula_id, componente_id, periodo_id, nota, recuperacao) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE nota = VALUES(nota), recuperacao = VALUES(recuperacao)');
     $strf = db()->prepare('INSERT INTO recuperacoes_finais (matricula_id, componente_id, nota) VALUES (?,?,?) ON DUPLICATE KEY UPDATE nota = VALUES(nota)');
@@ -26,9 +31,10 @@ if (is_post()) {
         $mid = $a['id'];
         foreach ($pers as $per) {
             if (!$editPer[$per['id']] || !isset($_POST['n'][$mid][$per['id']])) continue;
-            $st->execute([$mid, $compId, $per['id'], $norm($_POST['n'][$mid][$per['id']]), $norm($_POST['rc'][$mid][$per['id']] ?? '')]);
+            $old = $ex[$mid][$per['id']] ?? [];
+            $st->execute([$mid, $compId, $per['id'], $norm($_POST['n'][$mid][$per['id']], $old['nota'] ?? null), $norm($_POST['rc'][$mid][$per['id']] ?? '', $old['recuperacao'] ?? null)]);
         }
-        if ($editRf && isset($_POST['rf'][$mid])) $strf->execute([$mid, $compId, $norm($_POST['rf'][$mid])]);
+        if ($editRf && isset($_POST['rf'][$mid])) $strf->execute([$mid, $compId, $norm($_POST['rf'][$mid], $exrf[$mid] ?? null)]);
     }
     db()->commit();
     audit('notas_salvar', "turma $tid comp $compId");

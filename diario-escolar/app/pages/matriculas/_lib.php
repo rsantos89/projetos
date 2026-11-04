@@ -1,5 +1,5 @@
 <?php
-function gerar_numero_matricula(int $id): string { return (ano()['ano'] ?? date('Y')) . str_pad((string) $id, 5, '0', STR_PAD_LEFT); }
+function gerar_numero_matricula(int $id, ?int $ano = null): string { return ($ano ?? ano()['ano'] ?? date('Y')) . str_pad((string) $id, 5, '0', STR_PAD_LEFT); }
 
 function aluno_cursando(int $alunoId, int $anoId): ?array
 {
@@ -19,7 +19,7 @@ function criar_matricula(int $alunoId, int $turmaId, int $etapaId, string $data,
     if (aluno_cursando($alunoId, (int) $t['ano_letivo_id'])) throw new RuntimeException('O aluno já possui matrícula ativa neste ano letivo.');
     $id = insert('matriculas', ['aluno_id' => $alunoId, 'turma_id' => $turmaId, 'etapa_id' => $etapaId, 'ano_letivo_id' => $t['ano_letivo_id'],
         'data_matricula' => $data ?: date('Y-m-d'), 'tipo' => $tipo, 'observacao' => $obs]);
-    update('matriculas', ['numero' => gerar_numero_matricula($id)], 'id = ?', [$id]);
+    update('matriculas', ['numero' => gerar_numero_matricula($id, (int) val('SELECT ano FROM anos_letivos WHERE id = ?', [$t['ano_letivo_id']]))], 'id = ?', [$id]);
     return $id;
 }
 
@@ -27,6 +27,8 @@ function criar_matricula(int $alunoId, int $turmaId, int $etapaId, string $data,
 function copiar_registros(int $de, int $para): void
 {
     q('INSERT IGNORE INTO notas (matricula_id, componente_id, periodo_id, nota, recuperacao) SELECT ?, componente_id, periodo_id, nota, recuperacao FROM notas WHERE matricula_id = ?', [$para, $de]);
+    update('matriculas', ['origem_id' => $de], 'id = ?', [$para]);
+    q('INSERT IGNORE INTO recuperacoes_finais (matricula_id, componente_id, nota) SELECT ?, componente_id, nota FROM recuperacoes_finais WHERE matricula_id = ?', [$para, $de]);
     q('INSERT IGNORE INTO pareceres (matricula_id, periodo_id, texto) SELECT ?, periodo_id, texto FROM pareceres WHERE matricula_id = ?', [$para, $de]);
 }
 

@@ -1,6 +1,7 @@
 <?php
 require_role('admin', 'gestor');
 $id = gi('id');
+if ($id) aluno_acesso($id, true);
 $campos = ['nome', 'nome_social', 'data_nascimento', 'sexo', 'cor_raca', 'naturalidade', 'cpf', 'nis', 'rg', 'certidao', 'cartao_sus', 'inep_aluno',
     'mae', 'pai', 'responsavel', 'responsavel_parentesco', 'responsavel_cpf', 'telefone', 'telefone2', 'email', 'cep', 'endereco', 'bairro', 'cidade', 'zona',
     'nee', 'deficiencia', 'transporte_escolar', 'bolsa_familia', 'saude', 'autoriza_imagem', 'observacoes'];

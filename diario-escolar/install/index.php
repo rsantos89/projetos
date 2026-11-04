@@ -26,7 +26,14 @@ if (installed()) {
             'timezone' => $f['timezone'] ?: 'America/Sao_Paulo',
         ];
         $GLOBALS['config'] = $config;
-        $pdo = db();
+        try { $pdo = db(); } catch (PDOException $e) { throw new RuntimeException('Não foi possível conectar ao banco. Verifique servidor, nome do banco, usuário e senha.'); }
+        $jaInstalado = false;
+        try { $jaInstalado = (bool) val('SELECT COUNT(*) FROM usuarios'); } catch (PDOException $e) {}
+        if ($jaInstalado) {
+            // Banco já instalado (ex.: config.php não pôde ser gravado antes): só regrava o config com credenciais de administrador.
+            $adm = one("SELECT * FROM usuarios WHERE email = ? AND perfil = 'admin' AND ativo = 1", [mb_strtolower($f['admin_email'])]);
+            if (!$adm || !password_verify($f['admin_senha'], (string) $adm['senha_hash'])) throw new RuntimeException('Este banco já está instalado. Informe o e-mail e a senha de um administrador existente para gerar o config.php.');
+        } else {
         foreach (['schema.sql', 'seed.sql'] as $sqlFile) {
             if ($sqlFile === 'seed.sql' && val('SELECT COUNT(*) FROM etapas')) continue;
             $sql = preg_replace('/^--.*$/m', '', file_get_contents(__DIR__ . '/' . $sqlFile));
@@ -40,16 +47,17 @@ if (installed()) {
         }
         foreach (['nome_sistema' => $f['nome_sistema'] ?: 'Diário Escolar', 'municipio' => $f['municipio'], 'uf' => strtoupper($f['uf']), 'secretaria' => $f['secretaria'] ?: 'Secretaria Municipal de Educação'] as $k => $v) set_setting($k, $v);
         insert('usuarios', ['nome' => $f['admin_nome'], 'email' => mb_strtolower($f['admin_email']), 'senha_hash' => password_hash($f['admin_senha'], PASSWORD_DEFAULT), 'perfil' => 'admin']);
+        }
         $php = "<?php\n// Gerado pelo instalador em " . date('Y-m-d H:i') . "\nreturn " . var_export($config, true) . ";\n";
         if (@file_put_contents($cfgFile, $php) === false) {
-            $erro = 'Banco instalado, mas não foi possível gravar config.php. Crie o arquivo manualmente na raiz com o conteúdo abaixo:';
-            $manual = $php;
+            $erro = 'Banco instalado, mas não foi possível gravar config.php. Dê permissão de escrita à pasta do sistema (755) no Gerenciador de Arquivos e envie o formulário novamente com os mesmos dados.';
         } else {
             @chmod($cfgFile, 0640);
             $ok = true;
         }
     } catch (Throwable $t) {
-        $erro = $t instanceof PDOException ? 'Erro no banco de dados: ' . $t->getMessage() : $t->getMessage();
+        if ($t instanceof PDOException) error_log('Instalador: ' . $t->getMessage());
+        $erro = $t instanceof PDOException ? 'Erro ao criar as tabelas (código ' . $t->getCode() . '). Verifique se o usuário tem todos os privilégios no banco.' : $t->getMessage();
     }
 }
 $v = fn($k, $d = '') => e($_POST[$k] ?? $d);
@@ -65,7 +73,6 @@ $v = fn($k, $d = '') => e($_POST[$k] ?? $d);
     <a class="btn primary" href="../">Acessar o sistema</a>
   <?php else: ?>
     <?php if ($erro): ?><div class="alert error"><?= e($erro) ?></div><?php endif ?>
-    <?php if (!empty($manual)): ?><textarea readonly rows="12" style="font-family:monospace"><?= e($manual) ?></textarea><?php else: ?>
     <p class="muted">Crie um banco MySQL e um usuário no cPanel (<i>Bancos de dados MySQL</i>) e preencha abaixo.</p>
     <form method="post">
       <fieldset><legend>Banco de dados</legend>
@@ -82,7 +89,6 @@ $v = fn($k, $d = '') => e($_POST[$k] ?? $d);
       </fieldset>
       <button class="btn primary block">Instalar</button>
     </form>
-    <?php endif ?>
   <?php endif ?>
 </div>
 </body></html>

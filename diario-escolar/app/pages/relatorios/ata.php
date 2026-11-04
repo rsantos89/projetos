@@ -5,7 +5,7 @@ $title = 'Ata de resultados finais · ' . $t['nome'];
 $cabEscola = one('SELECT * FROM escolas WHERE id = ?', [$t['escola_id']]);
 $anoRow = one('SELECT * FROM anos_letivos WHERE id = ?', [$t['ano_letivo_id']]);
 $pers = periodos((int) $anoRow['id']);
-$comps = turma_componentes((int) $t['id']);
+$comps = componentes_permitidos((int) $t['id']);
 $alunos = array_values(array_filter(turma_alunos((int) $t['id']), fn($a) => !in_array($a['situacao'], ['cancelado', 'remanejado'], true)));
 $cons = consolidar($alunos, $comps, $pers, $anoRow);
 $cont = array_count_values(array_column($alunos, 'situacao'));

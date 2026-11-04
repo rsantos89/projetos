@@ -21,12 +21,18 @@ if (is_post()) {
             if (val('SELECT 1 FROM periodos WHERE ano_letivo_id = ? AND numero = ?', [$id, $i])) update('periodos', $row, 'ano_letivo_id = ? AND numero = ?', [$id, $i]);
             else insert('periodos', $row + ['ano_letivo_id' => $id, 'numero' => $i]);
         }
+        $temLanc = val('SELECT 1 FROM periodos p WHERE p.ano_letivo_id = ? AND p.numero > ? AND (EXISTS (SELECT 1 FROM notas n WHERE n.periodo_id = p.id) OR EXISTS (SELECT 1 FROM pareceres pa WHERE pa.periodo_id = p.id)) LIMIT 1', [$id, $n]);
+        if ($temLanc) throw new RuntimeException('Há notas ou pareceres lançados nos períodos que seriam removidos. Mantenha a divisão atual.');
         q('DELETE FROM periodos WHERE ano_letivo_id = ? AND numero > ?', [$id, $n]);
         db()->commit();
         audit('ano_salvar', (string) $d['ano']);
         flash('success', 'Ano letivo salvo.');
         $_SESSION['ano_id'] = $id;
         redirect('anos');
+    } catch (RuntimeException $e) {
+        db()->rollBack();
+        flash('error', $e->getMessage());
+        back();
     } catch (PDOException $e) {
         db()->rollBack();
         flash('error', $e->getCode() == 23000 ? 'Já existe esse ano letivo, ou há notas lançadas nos períodos removidos.' : 'Erro ao salvar.');

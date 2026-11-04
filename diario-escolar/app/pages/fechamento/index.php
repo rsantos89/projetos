@@ -6,7 +6,7 @@ $anoRow = one('SELECT * FROM anos_letivos WHERE id = ?', [$t['ano_letivo_id']]);
 $pers = periodos((int) $t['ano_letivo_id']);
 $comps = componentes_permitidos($tid);
 $alunos = array_values(array_filter(turma_alunos($tid), fn($a) => in_array($a['situacao'], ['cursando', 'aprovado', 'reprovado', 'concluido'], true)));
-$cons = consolidar($alunos, $comps, $pers, $anoRow);
+$cons = consolidar($alunos, turma_componentes($tid), $pers, $anoRow);
 $gestao = is_role('admin', 'gestor');
 
 if (is_post()) {

@@ -14,7 +14,7 @@ $comps = $tid ? componentes_permitidos($tid) : [];
 <div class="grid cards" style="margin-bottom:18px">
   <div class="tcard"><h3>Lista de alunos</h3><span class="muted">Relação nominal com etapa, nascimento e responsável.</span><div class="actions"><a class="btn sm primary" href="<?= url('relatorios/lista', ['turma_id' => $tid]) ?>">Abrir</a></div></div>
   <form class="tcard" method="get"><h3>Diário de classe (frequência mensal)</h3><input type="hidden" name="r" value="relatorios/diario"><input type="hidden" name="turma_id" value="<?= $tid ?>">
-    <div class="row"><label>Mês<input type="month" name="mes" value="<?= date('Y-m') ?>"></label><label>Componente<select name="componente_id"><option value="">Diária</option><option value="todos">Todos</option><?= options($comps) ?></select></label></div>
+    <div class="row"><label>Mês<input type="month" name="mes" value="<?= date('Y-m') ?>"></label><label>Componente<select name="componente_id"><?php if (professor_polivalente($tid)): ?><option value="">Diária</option><?php endif ?><option value="todos">Todos</option><?= options($comps) ?></select></label></div>
     <div class="actions"><button class="btn sm primary">Abrir</button></div></form>
   <div class="tcard"><h3>Boletins da turma</h3><span class="muted">Notas/pareceres e frequência por período.</span><div class="actions"><a class="btn sm primary" href="<?= url('relatorios/boletim', ['turma_id' => $tid]) ?>">Abrir</a></div></div>
   <div class="tcard"><h3>Ata de resultados finais</h3><span class="muted">Médias finais, frequência e resultado.</span><div class="actions"><a class="btn sm primary" href="<?= url('relatorios/ata', ['turma_id' => $tid]) ?>">Abrir</a></div></div>
